@@ -37,6 +37,7 @@ threads     = 0     # -T   : Print Threads Status
 bytes       = 0     # -B   : Print Bytes Status
 my_port   = '3306'  # default prot 3306
 my_socket =None     # sockfile
+my_pwd    =None     # root user password
 dbrt = 0            # -rt
 lock_file=''
 tcprstat_logfile=''
