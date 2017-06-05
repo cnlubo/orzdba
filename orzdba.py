@@ -24,6 +24,7 @@ import argparse, signal
 import gl
 import multiprocessing
 import atexit
+import math
 
 ATTRIBUTES = dict(
     list(zip([
@@ -122,11 +123,6 @@ def cprint(text, color=None, on_color=None, attrs=None, **kwargs):
 
     print((colored(text, color, on_color, attrs)), **kwargs)
 
-
-# ---------------------------------------------------------------------------
-# 1.
-# Function: get hostname
-# ChangeLog:
 # ---------------------------------------------------------------------------
 def hostname():
     sys = os.name
@@ -144,9 +140,29 @@ def hostname():
 # Function:get ipaddress
 # ChangeLog:
 # ---------------------------------------------------------------------------
-def get_ip_address():
+def Get_local_ip():
+    """
+    Returns the actual ip of the local machine.
+    This code figures out what source address would be used if some traffic
+    were to be sent out to some well known address on the Internet. In this
+    case, a Google DNS server is used, but the specific address does not
+    matter much.  No traffic is actually sent.
+    """
+    try:
+        csock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        csock.connect(('8.8.8.8', 80))
+        (addr, port) = csock.getsockname()
+        csock.close()
+        return addr
+    except socket.error:
+        return "127.0.0.1"
 
-    localIP = socket.gethostbyname(socket.gethostname())
+
+def get_ip_address():
+    # localIP = socket.gethostbyname(socket.gethostname())
+    # localIP = socket.gethostbyname("")
+
+    localIP = Get_local_ip()
     return localIP
 
 
@@ -157,6 +173,18 @@ def get_ip_address():
 def catch_zap(signalNun, currentStackFrame):
     #     cprint ("\nExit Now...\n\n",'red')
     sys.exit(0)
+
+
+def convertBytes(bytes, lst=None):
+    if lst is None:
+        lst = ['Bytes', 'K', 'M', 'G', 'TB', 'PB', 'EB']
+    i = int(math.floor(  # 舍弃小数点，取小
+        math.log(bytes, 1024)  # 求对数(对数：若 a**b = N 则 b 叫做以 a 为底 N 的对数)
+    ))
+
+    if i >= len(lst):
+        i = len(lst) - 1
+    return ('%.0f' + lst[i]) % (bytes / math.pow(1024, i))
 
 
 # ---------------------------------------------------------------------------
@@ -229,7 +257,7 @@ def get_options():
         opts.time = opts.load = opts.cpu = opts.swap = opts.com = gl.mysql = 1
 
     if (
-                                        opts.threads or opts.bytes or opts.rt or opts.com or opts.hit or opts.innodb_rows or opts.innodb_pages or opts.innodb_data or opts.innodb_log or opts.innodb_status): gl.mysql = 1
+                                                opts.threads or opts.bytes or opts.rt or opts.com or opts.hit or opts.innodb_rows or opts.innodb_pages or opts.innodb_data or opts.innodb_log or opts.innodb_status): gl.mysql = 1
 
     if opts.sys:
         opts.time = opts.load = opts.cpu = opts.swap = opts.time = 1
@@ -356,28 +384,15 @@ def Print_title():
         cprint(colored('Var : ', 'red'), end='')
         i = 0
         for var in vars1:
-            # cprint(vars1)
             x = var.rstrip()
-            # cprint(x.split('\t'))
             (vname, vvalue) = x.split("\t")
-
             if i % 3 == 0 and i != 0:
                 cprint(colored('      ' + vname, 'magenta') + colored('[', 'white'), end='')
             else:
                 cprint(colored(vname, 'magenta') + colored('[', 'white'), end='')
 
             if operator.eq(vname, 'max_binlog_cache_size') or operator.eq(vname, 'max_binlog_size'):
-
-                if float(vvalue) / 1024 / 1024 / 1024 >= 1:
-                    cprint("{:.0f}".format(int(vvalue) / 1024 / 1024 / 1024), 'white', end='')
-                    cprint('G]', 'white', end='')
-                else:
-                    if float(vvalue) / 1024 / 1024 >= 1:
-                        cprint("{:.0f}".format(int(vvalue) / 1024 / 1024), 'white', end='')
-                        cprint('M]', 'white', end='')
-                    else:
-                        cprint(colored(vvalue + ']', 'white'), end='')
-
+                cprint(colored(convertBytes(float(vvalue)) + ']', 'white'), end='')
             else:
                 cprint(colored(vvalue + ']', 'white'), end='')
             i += 1
@@ -386,7 +401,9 @@ def Print_title():
         i = 0
         for var in vars2:
             x = var.rstrip()
-            (vname, vvalue) = x.split("\t")
+            vvars = x.split("\t")
+            if len(vvars) == 2:
+                (vname, vvalue) = vvars
 
             if i % 3 == 0:
                 cprint(colored('      ' + vname, 'magenta') + colored('[', 'white'), end='')
@@ -397,15 +414,17 @@ def Print_title():
                                                                          'innodb_log_buffer_size') or operator.eq(vname,
                                                                                                                   'innodb_buffer_pool_size'):
 
-                if float(vvalue) / 1024 / 1024 / 1024 >= 1:
-                    cprint("{:.0f}".format(int(vvalue) / 1024 / 1024 / 1024), 'white', end='')
-                    cprint('G]', 'white', end='')
-                else:
-                    if float(vvalue) / 1024 / 1024 >= 1:
-                        cprint("{:.0f}".format(int(vvalue) / 1024 / 1024), 'white', end='')
-                        cprint('M]', 'white', end='')
-                    else:
-                        cprint(colored(vvalue + ']', 'white'), end='')
+                # if float(vvalue) / 1024 / 1024 / 1024 >= 1:
+                #     cprint("{:.0f}".format(int(vvalue) / 1024 / 1024 / 1024), 'white', end='')
+                #     cprint('G]', 'white', end='')
+                # else:
+                #     if float(vvalue) / 1024 / 1024 >= 1:
+                #         cprint("{:.0f}".format(int(vvalue) / 1024 / 1024), 'white', end='')
+                #         cprint('M]', 'white', end='')
+                #     else:
+                #         cprint(colored(vvalue + ']', 'white'), end='')
+
+                cprint(colored(convertBytes(float(vvalue)) + ']', 'white'), end='')
 
             else:
                 cprint(colored(vvalue + ']', 'white'), end='')
@@ -414,11 +433,6 @@ def Print_title():
         cprint('\n')
 
 
-# ---------------------------------------------------------------------------
-# 7.
-# Function:
-# ChangeLog:
-# ---------------------------------------------------------------------------
 def get_mysql_vars():
     # get dbname
     p = subprocess.Popen(
@@ -426,26 +440,33 @@ def get_mysql_vars():
         stdout=subprocess.PIPE)
     out = p.communicate()[0]
     if gl.python_version.major == 3:
-        dbname = str(out, encoding='utf8').rstrip('|')
+        dbname = str(out).rstrip('|')
     elif gl.python_version.major == 2:
         dbname = out.rstrip('|')
     # get variables
-    s1 = 'show variables where Variable_name in ("sync_binlog","max_connections","max_user_connections","max_connect_errors","table_open_cache","table_definition_cache","thread_cache_size","binlog_format","open_files_limit","max_binlog_size","max_binlog_cache_size")'
+    s1 = 'show variables where Variable_name in ("sync_binlog","max_connections","max_user_connections",' \
+         '"max_connect_errors","table_open_cache","table_definition_cache","thread_cache_size","binlog_format",' \
+         '"open_files_limit") '
+    # "max_binlog_size","max_binlog_cache_size"
     p = subprocess.Popen(gl.mysql_conn + "  -e '" + s1 + "'", shell=True, stdout=subprocess.PIPE)
     out = p.communicate()[0].rstrip()
     # cprint(str(gl.python_version.major))
     if gl.python_version.major == 2:
         vars1 = out.split('\n')
     elif gl.python_version.major == 3:
-        vars1 = str(out, encoding='utf8').split('\n')
-    s1 = 'show variables where Variable_name in ("innodb_flush_log_at_trx_commit","innodb_flush_method","innodb_buffer_pool_size","innodb_max_dirty_pages_pct","innodb_log_buffer_size","innodb_log_file_size","innodb_log_files_in_group","innodb_thread_concurrency","innodb_file_per_table","innodb_adaptive_hash_index","innodb_open_files","innodb_io_capacity","innodb_read_io_threads","innodb_write_io_threads","innodb_adaptive_flushing","innodb_lock_wait_timeout","innodb_log_files_in_group")'
+        vars1 = str(out).split('\n')
+    s1 = 'show variables where Variable_name in ("innodb_flush_log_at_trx_commit","innodb_flush_method",' \
+         '"innodb_buffer_pool_size","innodb_max_dirty_pages_pct","innodb_log_buffer_size","innodb_log_file_size",' \
+         '"innodb_log_files_in_group","innodb_thread_concurrency","innodb_file_per_table",' \
+         '"innodb_adaptive_hash_index","innodb_open_files","innodb_io_capacity","innodb_read_io_threads",' \
+         '"innodb_write_io_threads","innodb_adaptive_flushing","innodb_lock_wait_timeout","innodb_log_files_in_group") '
     p = subprocess.Popen(gl.mysql_conn + "  -e '" + s1 + "'", shell=True, stdout=subprocess.PIPE)
     out = p.communicate()[0].rstrip()
     if gl.python_version.major == 2:
         vars2 = out.split('\n')
     elif gl.python_version.major == 3:
-        vars2 = str(out, encoding='utf8').split('\n')
-    # print vars2
+        vars2 = str(out).split('\n')
+    # cprint (vars2)
     return (dbname, vars1, vars2)
 
 
@@ -477,7 +498,7 @@ def readCpuInfo():
     # cpu   1-user  2-nice  3-system 4-idle   5-iowait  6-irq   7-softirq
     cpuinfo = {}
     f = open('/proc/stat')
-    lines = f.readlines();
+    lines = f.readlines()
     f.close()
 
     for line in lines:
@@ -726,7 +747,7 @@ def get_mysqlstat():
                 (vname, vvalue) = var.split('\t')
                 mystat2[vname] = vvalue
         elif gl.python_version.major == 3:
-            vars = str(out, encoding='utf8').split('\n')
+            vars = str(out).split('\n')
             for var in vars:
                 (vname, vvalue) = var.split('\t')
                 mystat2[vname] = vvalue
@@ -739,7 +760,8 @@ def get_mysqlstat():
             read_request = (int(mystat2["Innodb_buffer_pool_read_requests"]) - int(
                 gl.mystat1["Innodb_buffer_pool_read_requests"])) / gl.interval
             read = (
-                   int(mystat2["Innodb_buffer_pool_reads"]) - int(gl.mystat1["Innodb_buffer_pool_reads"])) / gl.interval
+                       int(mystat2["Innodb_buffer_pool_reads"]) - int(
+                           gl.mystat1["Innodb_buffer_pool_reads"])) / gl.interval
             innodb_rows_inserted_diff = (int(mystat2["Innodb_rows_inserted"]) - int(
                 gl.mystat1["Innodb_rows_inserted"])) / gl.interval
             innodb_rows_updated_diff = (int(mystat2["Innodb_rows_updated"]) - int(
@@ -990,7 +1012,7 @@ def get_sysinfo():
             cprint('|', 'blue', attrs=['bold'], end='')
     if gl.my_disk is not None:
         deltams = 1000 * (
-        cpuinfo['userdiff'] + cpuinfo['systemdiff'] + cpuinfo['idlediff'] + cpuinfo['iowaitdiff']) / gl.ncpu / gl.HZ
+            cpuinfo['userdiff'] + cpuinfo['systemdiff'] + cpuinfo['idlediff'] + cpuinfo['iowaitdiff']) / gl.ncpu / gl.HZ
         ios_diff = readDiskInfo(gl.my_disk, deltams)
         if ios_diff is None:
             cprint('\nERROR! Please set the right disk info!\n', 'red')
@@ -1098,8 +1120,8 @@ def main():
     # print gl.mysql_conn
     if gl.my_pwd is not None:
         shell_command = "env"
-        os.putenv("MYSQL_PWD",gl.my_pwd)
-        subprocess.call(shell_command, shell=True)
+        os.putenv("MYSQL_PWD", gl.my_pwd)
+        # subprocess.call(shell_command, shell=True)
     if gl.orz_logfile is not None:
         gl.HAS_COLOR = 1
         cprint('--------write log begin--------------------------', 'green', end='')
